@@ -5,16 +5,8 @@ import os
 def run_features(input_path, output_path):
     spark = SparkSession.builder.appName("FeatureGold").getOrCreate()
 
-    # Lecture des données Silver
-    df = spark.read.parquet(f"{input_path}/silver/silver_data.parquet")
+    df = spark.read.parquet(f"{input_path}/silver/cleaned_ecommerce_data.parquet")
 
-    # Vérifier que les colonnes nécessaires existent
-    required_columns = ["CustomerID", "line_total", "Quantity", "UnitPrice", "InvoiceNo"]
-    missing_cols = [c for c in required_columns if c not in df.columns]
-    if missing_cols:
-        raise ValueError(f"Colonnes manquantes dans le fichier Silver : {missing_cols}")
-
-    # Agrégation pour créer les features Gold
     df_features = df.groupBy("CustomerID").agg(
         _sum("line_total").alias("total_spent"),
         _sum("Quantity").alias("total_items_purchased"),
@@ -22,13 +14,10 @@ def run_features(input_path, output_path):
         count("InvoiceNo").alias("num_orders")
     )
 
-    # Création du dossier gold si inexistant
     os.makedirs(f"{output_path}/gold", exist_ok=True)
+    df_features.write.mode("overwrite").parquet(f"{output_path}/gold/ecommerce_features.parquet")
 
-    # Écriture Parquet
-    features_path = f"{output_path}/gold/features_data.parquet"
-    df_features.write.mode("overwrite").parquet(features_path)
-    print(f"[INFO] Features Gold générées avec succès : {features_path}")
+    print(f"[INFO] Gold généré")
 
     spark.stop()
 
