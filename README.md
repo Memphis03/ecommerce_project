@@ -37,5 +37,20 @@ RFM Analysis : distributions de la récence (recency_days), fréquence (frequenc
 Churn Prediction : visualisation des probabilités de churn et des labels prédits par le modèle.
 Gold Features : histogrammes des montants dépensés par client, nombre total d’articles achetés, prix moyen par article et nombre de commandes.
 
+🚀 Lancement de l’application
+Pour que l’interface Streamlit fonctionne correctement, l’API FastAPI doit être lancée en premier :
+Activer l’environnement virtuel (si nécessaire)
+conda activate venv_py312  # ou source <env_name>/bin/activate
+Lancer l’API FastAPI
+cd Api
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+main:app correspond au fichier main.py et à l’instance FastAPI app.
+L’API sera disponible sur : http://localhost:8000
+Lancer l’application Streamlit
+streamlit run ../streamlit_app.py
+Streamlit se connectera automatiquement à l’API pour récupérer les prédictions.
+L’interface sera accessible dans ton navigateur à http://localhost:8501.
+⚠️ Important : Toujours lancer l’API avant Streamlit, sinon l’interface ne pourra pas récupérer les données de prédiction.
+
 👨‍💻 Auteur
 Mouhamadou Mountaga Diallo
