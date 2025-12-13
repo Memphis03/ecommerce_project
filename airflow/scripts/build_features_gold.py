@@ -1,12 +1,21 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import sum as _sum, count, avg, col, to_date
+from pyspark.sql.functions import (
+    sum as _sum,
+    count,
+    avg,
+    col,
+    to_date,
+    max,
+    datediff,
+    lit
+)
+from pyspark.sql.types import IntegerType, BooleanType
 import os
 from datetime import datetime
 
 def run_features(input_path, output_path, start_date=None):
     spark = SparkSession.builder.appName("FeatureGold").getOrCreate()
 
-    # Charger tous les fichiers Silver
     silver_dir = f"{input_path}/silver"
     silver_files = [f for f in os.listdir(silver_dir) if f.endswith(".parquet")]
     silver_paths = [f"{silver_dir}/{f}" for f in silver_files]
@@ -16,37 +25,49 @@ def run_features(input_path, output_path, start_date=None):
         spark.stop()
         return
 
-    df = spark.read.option("mergeSchema", "true").parquet(*silver_paths)
+    # Lecture fichier par fichier pour caster 'is_return' avant la fusion
+    dfs = []
+    for path in silver_paths:
+        tmp_df = spark.read.parquet(path)
+        if 'is_return' in tmp_df.columns:
+            # Convertir en Integer (0/1) si c'est Boolean
+            tmp_df = tmp_df.withColumn("is_return", 
+                                       col("is_return").cast(IntegerType()))
+        else:
+            # Ajouter colonne manquante avec valeur par défaut
+            tmp_df = tmp_df.withColumn("is_return", lit(0))
+        dfs.append(tmp_df)
 
-    # S'assurer que InvoiceDate est bien en date
-    df = df.withColumn("InvoiceDate", to_date(col("InvoiceDate")))
+    # Fusionner tous les DataFrames
+    from functools import reduce
+    from pyspark.sql import DataFrame
+    df = reduce(DataFrame.unionByName, dfs)
 
-    # Filtrage incrémental si start_date fourni
     if start_date:
-        df = df.filter(col("InvoiceDate").isNotNull() & (col("InvoiceDate") >= start_date))
+        df = df.filter(
+            col("InvoiceDate").isNotNull() & 
+            (col("InvoiceDate") >= lit(start_date))
+        )
 
-    # Agrégation par CustomerID
+    # 🔑 Date de référence = dernière date du dataset
+    ref_date = df.select(max("InvoiceDate")).collect()[0][0]
+
+    # Agrégation comportement client (RFM)
     df_features = df.groupBy("CustomerID").agg(
-        _sum("line_total").alias("total_spent"),
-        _sum("Quantity").alias("total_items_purchased"),
-        avg("UnitPrice").alias("avg_price"),
-        count("InvoiceNo").alias("num_orders")
+        datediff(lit(ref_date), max("InvoiceDate")).alias("recency_days"),
+        count("InvoiceNo").alias("frequency"),
+        _sum("line_total").alias("monetary"),
+        _sum("Quantity").alias("total_items"),
+        avg("UnitPrice").alias("avg_price")
     )
 
-    # Sauvegarde Gold
     os.makedirs(f"{output_path}/gold", exist_ok=True)
 
-    # Nom du fichier basé sur la date passée en argument si fournie
-    if start_date:
-        date_str = start_date.replace("-", "")  # 2011-02-04 -> 20110204
-    else:
-        from datetime import datetime
-        date_str = datetime.now().strftime("%Y%m%d")
-
+    date_str = start_date.replace("-", "") if start_date else datetime.now().strftime("%Y%m%d")
     parquet_path = f"{output_path}/gold/ecommerce_features_{date_str}.parquet"
 
     df_features.write.mode("overwrite").parquet(parquet_path)
-    print(f"[INFO] Gold généré : {parquet_path}")
+    print(f"[INFO] Gold RFM généré : {parquet_path}")
 
     spark.stop()
 

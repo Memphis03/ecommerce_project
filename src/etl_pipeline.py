@@ -1,6 +1,7 @@
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, when, lit, to_date, sum as _sum, expr
 from pyspark.sql.types import DoubleType, IntegerType
+from pyspark.sql.functions import count, avg, max, datediff
 import os
 
 def etl_pipeline(input_path: str, output_path: str):
@@ -39,10 +40,16 @@ def etl_pipeline(input_path: str, output_path: str):
     df_cleaned.write.mode("overwrite").parquet(os.path.join(output_path, "silver", "cleaned_ecommerce_data.parquet"))
 
     # Gold — Features
+    # Référence date : dernière date du dataset
+    ref_date = df_cleaned.select(max("InvoiceDate")).collect()[0][0]
+
     df_features = df_cleaned.groupBy("CustomerID").agg(
-        _sum("line_total").alias("total_spent"),
-        _sum(when(col("is_return") == True, col("line_total")).otherwise(0)).alias("total_returns"),
-        _sum("Quantity").alias("total_items_purchased")
+        datediff(lit(ref_date), max("InvoiceDate")).alias("recency_days"),
+        count("InvoiceNo").alias("frequency"),
+        _sum("line_total").alias("monetary"),
+        _sum("Quantity").alias("total_items"),
+        avg("UnitPrice").alias("avg_price"),
+        _sum(when(col("is_return") == True, col("line_total")).otherwise(0)).alias("total_returns")
     )
 
     df_features.write.mode("overwrite").parquet(os.path.join(output_path, "gold", "ecommerce_features.parquet"))
