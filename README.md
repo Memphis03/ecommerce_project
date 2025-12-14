@@ -52,5 +52,8 @@ Streamlit se connectera automatiquement à l’API pour récupérer les prédict
 L’interface sera accessible dans ton navigateur à http://localhost:8501.
 ⚠️ Important : Toujours lancer l’API avant Streamlit, sinon l’interface ne pourra pas récupérer les données de prédiction.
 
+« Le projet est entièrement fonctionnel en local.
+Le déploiement cloud sera effectué ultérieurement afin de respecter les bonnes pratiques de sécurité et de configuration. »
+
 👨‍💻 Auteur
 Mouhamadou Mountaga Diallo
