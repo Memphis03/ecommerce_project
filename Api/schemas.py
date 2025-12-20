@@ -4,10 +4,10 @@ from pydantic import BaseModel, Field
 # Requête pour prédiction churn
 # ==============================
 class CustomerFeatures(BaseModel):
-    Chiffre_daffaires_total: float = Field(..., example=350.5)
-    Nombre_de_commandes: int = Field(..., example=12)
-    Nombre_total_d_articles: int = Field(..., example=42)
-    Prix_moyen_par_article: float = Field(..., example=9.8)
+    Chiffre_daffaires_total: float = Field(..., example=1200)
+    Nombre_de_commandes: int = Field(..., example=5)
+    Nombre_total_d_articles: int = Field(..., example=20)
+    Prix_moyen_par_article: float = Field(..., example=60.0)
 
 class ChurnPredictionRequest(CustomerFeatures):
     pass

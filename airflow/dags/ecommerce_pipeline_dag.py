@@ -23,7 +23,7 @@ default_args = {
 }
 
 # Récupération de la date de filtrage depuis Airflow Variable ou valeur par défaut
-START_DATE_FILTER = Variable.get("start_date_filter", default_var="2011-05-17")
+START_DATE_FILTER = Variable.get("start_date_filter", default_var="2011-05-11")
 
 with DAG(
     dag_id="ecommerce_data_pipeline",
